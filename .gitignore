@@ -1,0 +1,11 @@
+transit.db 
+scraper_output.txt 
+commands_history.txt 
+__pycache__/ 
+*.db 
+*.zip 
+*_output.txt 
+data/gtfs/stop_times.txt 
+data/gtfs/stop_times.txt 
+data/stop_times.txt 
+data/stop_times.txt 

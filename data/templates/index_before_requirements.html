@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TransitNotice</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f3f6fb;
+      color: #182338;
+    }
+    header {
+      padding: 24px;
+      background: #174ea6;
+      color: white;
+    }
+    header h1 { margin: 0 0 8px; }
+    header p { margin: 0; }
+    main {
+      max-width: 950px;
+      margin: 24px auto;
+      padding: 0 16px;
+    }
+    section {
+      background: white;
+      padding: 22px;
+      margin-bottom: 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px #00000012;
+    }
+    h2 { margin-top: 0; }
+    label {
+      display: block;
+      margin-top: 14px;
+      font-weight: bold;
+    }
+    input, textarea {
+      width: 100%;
+      margin-top: 6px;
+      padding: 12px;
+      border: 1px solid #b9c4d3;
+      border-radius: 6px;
+      font: inherit;
+    }
+    textarea { min-height: 90px; }
+    button {
+      padding: 10px 16px;
+      margin-top: 12px;
+      border: 0;
+      border-radius: 6px;
+      background: #174ea6;
+      color: white;
+      font: inherit;
+      cursor: pointer;
+    }
+    button:disabled { opacity: .6; cursor: wait; }
+    .delete { background: #b3261e; }
+    .item {
+      padding: 14px 0;
+      border-bottom: 1px solid #e1e6ee;
+    }
+    .item h3 { margin: 0 0 8px; }
+    .item p { margin: 6px 0; white-space: pre-wrap; }
+    .muted { color: #586579; }
+    #status { white-space: pre-wrap; }
+    .success { color: #176b37; }
+    .error { color: #b3261e; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>TransitNotice</h1>
+  <p>Delhi bus route search and manually added notices</p>
+</header>
+
+<main>
+  <section>
+    <h2>Search Routes</h2>
+    <form id="search-form">
+      <label for="query">Route number or name</label>
+      <input id="query" placeholder="Example: 764">
+      <button type="submit">Search</button>
+    </form>
+    <p class="muted">Up to 20 matching routes are shown.</p>
+    <div id="routes">Loading routes...</div>
+  </section>
+
+  <section>
+    <h2>Add Notice</h2>
+    <p class="muted">
+      These are project notices, not verified live transport alerts.
+    </p>
+
+    <form id="notice-form">
+      <label for="title">Notice title / type</label>
+      <input id="title" required placeholder="Example: Test Notice">
+
+      <label for="description">Description</label>
+      <textarea id="description" required
+        placeholder="Enter notice details"></textarea>
+
+      <label for="route-id">Route ID (optional)</label>
+      <input id="route-id" placeholder="Example: 0">
+
+      <button id="add-button" type="submit">Add Notice</button>
+    </form>
+    <p id="status" role="status"></p>
+  </section>
+
+  <section>
+    <h2>Notices</h2>
+    <button id="refresh-button" type="button">Refresh Notices</button>
+    <div id="notices">Loading notices...</div>
+  </section>
+</main>
+
+<script>
+  const byId = id => document.getElementById(id);
+
+  function element(tag, text, className) {
+    const node = document.createElement(tag);
+    node.textContent = text;
+    if (className) node.className = className;
+    return node;
+  }
+
+  function showStatus(message, isError = false) {
+    const status = byId("status");
+    status.textContent = message;
+    status.className = isError ? "error" : "success";
+  }
+
+  async function api(url, options = {}) {
+    const response = await fetch(url, options);
+    let data;
+
+    try {
+      data = await response.json();
+    } catch {
+      throw new Error(
+        "Server returned an unexpected response. Check the Flask CMD window."
+      );
+    }
+
+    if (!response.ok) {
+      throw new Error(data.error || "Request failed.");
+    }
+
+    return data;
+  }
+
+  async function loadRoutes() {
+    const box = byId("routes");
+    box.textContent = "Loading routes...";
+
+    try {
+      const query = byId("query").value.trim();
+      const routes = await api(
+        "/api/routes?q=" + encodeURIComponent(query)
+      );
+
+      if (!Array.isArray(routes)) {
+        throw new Error("Unexpected routes response.");
+      }
+
+      box.replaceChildren();
+
+      if (routes.length === 0) {
+        box.textContent = "No matching routes found.";
+        return;
+      }
+
+      for (const route of routes) {
+        const item = element("div", "", "item");
+        const name = route.route_short_name ||
+                     route.route_long_name ||
+                     "Unnamed route";
+
+        item.appendChild(element("h3", name));
+        item.appendChild(
+          element("p", "Route ID: " + route.route_id, "muted")
+        );
+
+        if (route.route_short_name && route.route_long_name) {
+          item.appendChild(element("p", route.route_long_name));
+        }
+
+        box.appendChild(item);
+      }
+    } catch (error) {
+      box.textContent = "Routes error: " + error.message;
+    }
+  }
+
+  async function loadNotices() {
+    const box = byId("notices");
+    box.textContent = "Loading notices...";
+
+    try {
+      const notices = await api("/api/notices");
+
+      if (!Array.isArray(notices)) {
+        throw new Error("Unexpected notices response.");
+      }
+
+      box.replaceChildren();
+
+      if (notices.length === 0) {
+        box.textContent = "No notices yet.";
+        return;
+      }
+
+      for (const notice of notices) {
+        const item = element("div", "", "item");
+        item.appendChild(element("h3", notice.title || "Notice"));
+        item.appendChild(element("p", notice.description || ""));
+
+        const routeText = notice.route_id == null ||
+                          notice.route_id === ""
+          ? "Route: Not specified"
+          : "Route ID: " + notice.route_id;
+
+        item.appendChild(element("p", routeText, "muted"));
+        item.appendChild(
+          element("p", "Created: " + (notice.created_at || ""), "muted")
+        );
+
+        const button = element("button", "Delete", "delete");
+        button.type = "button";
+        button.addEventListener("click", () => deleteNotice(notice.id, button));
+        item.appendChild(button);
+        box.appendChild(item);
+      }
+    } catch (error) {
+      box.textContent = "Notices error: " + error.message;
+    }
+  }
+
+  async function addNotice(event) {
+    event.preventDefault();
+
+    const title = byId("title").value.trim();
+    const description = byId("description").value.trim();
+    const route_id = byId("route-id").value.trim();
+
+    if (!title || !description) {
+      showStatus("Enter a title and description.", true);
+      return;
+    }
+
+    const button = byId("add-button");
+    button.disabled = true;
+    showStatus("Saving notice...");
+
+    try {
+      await api("/api/notices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, description, route_id })
+      });
+
+      byId("notice-form").reset();
+      showStatus("Notice added successfully.");
+      await loadNotices();
+    } catch (error) {
+      showStatus("Add failed: " + error.message, true);
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  async function deleteNotice(id, button) {
+    if (!window.confirm("Delete this notice?")) return;
+
+    button.disabled = true;
+
+    try {
+      await api("/api/notices/" + encodeURIComponent(id), {
+        method: "DELETE"
+      });
+      showStatus("Notice deleted successfully.");
+      await loadNotices();
+    } catch (error) {
+      showStatus("Delete failed: " + error.message, true);
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  byId("search-form").addEventListener("submit", event => {
+    event.preventDefault();
+    loadRoutes();
+  });
+
+  byId("notice-form").addEventListener("submit", addNotice);
+  byId("refresh-button").addEventListener("click", loadNotices);
+
+  loadRoutes();
+  loadNotices();
+</script>
+</body>
+</html>

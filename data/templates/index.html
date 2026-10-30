@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TransitNotice Dashboard</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#f1f5f9;color:#172033}
+aside{position:fixed;inset:0 auto 0 0;width:220px;background:#12233f;
+color:white;padding:24px 16px;overflow:auto}
+aside h1{font-size:23px;margin:0 0 8px}
+aside p{font-size:13px;color:#c7d5eb}
+nav button{display:block;width:100%;text-align:left;margin:9px 0;
+background:transparent;color:white;border:1px solid #496080}
+nav button.selected{background:#2563eb;border-color:#2563eb}
+main{margin-left:220px;padding:28px;max-width:1500px}
+h1,h2,h3{margin-top:0}
+button{padding:10px 14px;border:0;border-radius:7px;background:#2563eb;
+color:white;cursor:pointer;font:inherit}
+button:disabled{opacity:.6}
+input,select{padding:10px;border:1px solid #b9c6d7;border-radius:7px;
+font:inherit;width:100%;background:white}
+label{display:block;font-size:13px;margin-bottom:5px}
+.panel,.card{background:white;border:1px solid #dce3ed;
+border-radius:12px;padding:20px;margin-bottom:16px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.metric{font-size:30px;font-weight:bold;margin-top:10px}
+.filters{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.badge{display:inline-block;padding:5px 9px;border-radius:20px;
+background:#e5edf8;font-size:13px;margin:0 5px 8px 0}
+.active{background:#dcfce7;color:#166534}
+.expired,.cancelled,.withdrawn{background:#fee2e2;color:#991b1b}
+.open_ended,.unknown_window,.needs_review,.upcoming{
+background:#fef3c7;color:#854d0e}
+.muted{color:#526176;font-size:14px}
+.warning{background:#fff7dd;border:1px solid #e5c664;padding:14px;
+border-radius:8px;margin-bottom:18px}
+.error{color:#b42318}
+.card p{white-space:pre-wrap;overflow-wrap:anywhere}
+.card h3{margin-bottom:12px}
+.meta{font-size:14px;line-height:1.7}
+a{color:#174ea6;overflow-wrap:anywhere}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eef2f7;
+padding:12px;border-radius:7px}
+[hidden]{display:none!important}
+#message{margin:12px 0;white-space:pre-wrap}
+@media(max-width:850px){
+aside{position:static;width:auto}
+nav{display:flex;flex-wrap:wrap;gap:6px}
+nav button{width:auto}
+main{margin-left:0;padding:16px}
+.grid{grid-template-columns:repeat(2,1fr)}
+.filters{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<aside>
+  <h1>TransitNotice</h1>
+  <p>Public transport advisory tracker</p>
+  <nav aria-label="Main navigation">
+    <button data-view="dashboard" class="selected">Dashboard</button>
+    <button data-view="advisories">Advisories</button>
+    <button data-view="routes">Bus Routes</button>
+    <button data-view="sources">Sources</button>
+    <button data-view="history">Revision History</button>
+  </nav>
+  <p>Prototype · Demo advisories</p>
+</aside>
+
+<main>
+  <div class="warning">
+    Demo advisories are simulated test records, not official live alerts.
+    Bus routes come from the imported GTFS dataset; currency is not verified.
+  </div>
+
+  <div id="message" role="status"></div>
+
+  <section id="dashboard">
+    <h1>Dashboard</h1>
+    <div class="grid">
+      <div class="panel">Total advisories<div class="metric" id="total">—</div></div>
+      <div class="panel">Active<div class="metric" id="active">—</div></div>
+      <div class="panel">Expired<div class="metric" id="expired">—</div></div>
+      <div class="panel">Open-ended<div class="metric" id="open">—</div></div>
+    </div>
+    <div class="panel">
+      <h2>Monitoring status</h2>
+      <p>Demo source refresh is currently run from the command line.</p>
+      <p><code>py refresh_demo.py</code></p>
+      <p class="muted">
+        Reload below reads the database only; it does not refresh an
+        external source or update verification timestamps.
+      </p>
+      <button id="reload">Reload Dashboard Data</button>
+    </div>
+    <div class="panel">
+      <h2>Not integrated yet</h2>
+      <p>
+        Official-source collection, scheduled network refresh,
+        alert delivery and protected administration.
+      </p>
+    </div>
+  </section>
+
+  <section id="advisories" hidden>
+    <h1>Service Advisories</h1>
+    <div class="panel">
+      <div class="filters">
+        <div>
+          <label for="search">Search notices</label>
+          <input id="search" placeholder="Summary, agency or route">
+        </div>
+        <div>
+          <label for="route-filter">Exact route ID</label>
+          <input id="route-filter" placeholder="Example: 0">
+        </div>
+        <div>
+          <label for="area-filter">Area</label>
+          <input id="area-filter" placeholder="Example: Central">
+        </div>
+        <div>
+          <label for="station-filter">Station</label>
+          <input id="station-filter" placeholder="Example: Demo Central">
+        </div>
+        <div>
+          <label for="status-filter">Status</label>
+          <select id="status-filter">
+            <option value="">All statuses</option>
+            <option value="active">Active</option>
+            <option value="upcoming">Upcoming</option>
+            <option value="expired">Expired</option>
+            <option value="open_ended">Open-ended</option>
+            <option value="unknown_window">Unknown window</option>
+            <option value="withdrawn">Withdrawn</option>
+            <option value="cancelled">Cancelled</option>
+            <option value="needs_review">Needs review</option>
+          </select>
+        </div>
+        <div>
+          <label for="date-filter">Service date (Asia/Kolkata)</label>
+          <input id="date-filter" type="date">
+        </div>
+      </div>
+      <p class="muted">
+        Date filtering checks overlap with that day in Indian Standard Time.
+        Unknown-start notices require review.
+      </p>
+    </div>
+    <p id="result-count"></p>
+    <div id="notice-list"></div>
+  </section>
+
+  <section id="routes" hidden>
+    <h1>Bus Routes</h1>
+    <div class="panel">
+      <form id="route-search-form">
+        <label for="route-search">Route number or name</label>
+        <input id="route-search" placeholder="Example: 764">
+        <p><button type="submit">Search Routes</button></p>
+      </form>
+      <p class="muted">
+        Up to 20 results. Click a route to see matching stored advisories.
+      </p>
+    </div>
+    <div id="route-list"></div>
+  </section>
+
+  <section id="sources" hidden>
+    <h1>Sources &amp; Freshness</h1>
+    <div id="source-list"></div>
+  </section>
+
+  <section id="history" hidden>
+    <h1>Revision History</h1>
+    <p class="muted">
+      Open an advisory's history to view its recorded versions.
+    </p>
+    <div id="history-list"></div>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+let notices = [];
+
+function node(tag, text, className) {
+  const item = document.createElement(tag);
+  item.textContent = text;
+  if (className) item.className = className;
+  return item;
+}
+
+function message(text, error = false) {
+  $("message").textContent = text;
+  $("message").className = error ? "error" : "muted";
+}
+
+async function api(url) {
+  const response = await fetch(url);
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error("Unexpected server response. Check the Flask CMD.");
+  }
+  if (!response.ok) throw new Error(data.error || "Request failed");
+  return data;
+}
+
+function time(value) {
+  if (!value) return "Not provided";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    dateStyle: "medium",
+    timeStyle: "short"
+  }) + " IST";
+}
+
+function showView(name) {
+  for (const section of document.querySelectorAll("main > section")) {
+    section.hidden = section.id !== name;
+  }
+  for (const button of document.querySelectorAll("nav button")) {
+    button.classList.toggle("selected", button.dataset.view === name);
+  }
+}
+
+document.querySelectorAll("nav button").forEach(button => {
+  button.addEventListener("click", () => showView(button.dataset.view));
+});
+
+function sourceReference(url, mode) {
+  if (mode === "demo") {
+    return node("p", "Local demo source: " + url, "muted");
+  }
+  try {
+    const parsed = new URL(url);
+    if (!["https:", "http:"].includes(parsed.protocol)) {
+      return node("p", "Source: " + url, "muted");
+    }
+    const link = node("a", "Open original source");
+    link.href = parsed.href;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    return link;
+  } catch {
+    return node("p", "Source URL unavailable", "muted");
+  }
+}
+
+function matchesDate(notice, selected) {
+  if (!selected) return true;
+  if (!notice.valid_from) return false;
+
+  const dayStart = new Date(selected + "T00:00:00+05:30").getTime();
+  const dayEnd = dayStart + 86400000;
+  const start = new Date(notice.valid_from).getTime();
+  const end = notice.valid_to
+    ? new Date(notice.valid_to).getTime()
+    : Infinity;
+
+  return start < dayEnd && end > dayStart && end > start;
+}
+
+function renderNotices() {
+  const search = $("search").value.trim().toLowerCase();
+  const route = $("route-filter").value.trim();
+  const area = $("area-filter").value.trim().toLowerCase();
+  const station = $("station-filter").value.trim().toLowerCase();
+  const status = $("status-filter").value;
+  const date = $("date-filter").value;
+
+  const filtered = notices.filter(notice => {
+    const text = [
+      notice.summary, notice.agency, notice.area,
+      notice.advisory_type, ...notice.routes, ...notice.stations
+    ].join(" ").toLowerCase();
+
+    return (!search || text.includes(search)) &&
+      (!route || notice.routes.includes(route)) &&
+      (!area || (notice.area || "").toLowerCase().includes(area)) &&
+      (!station || notice.stations.some(
+        value => value.toLowerCase().includes(station)
+      )) &&
+      (!status || notice.status === status) &&
+      matchesDate(notice, date);
+  });
+
+  $("result-count").textContent = filtered.length + " matching advisories";
+  const box = $("notice-list");
+  box.replaceChildren();
+
+  if (!filtered.length) {
+    box.appendChild(node("p", "No matching advisories."));
+    return;
+  }
+
+  for (const notice of filtered) {
+    const card = node("article", "", "card");
+    card.appendChild(node("span", notice.status, "badge " + notice.status));
+    card.appendChild(node("span", notice.freshness, "badge"));
+    card.appendChild(node("h3", notice.summary));
+    card.appendChild(node("p",
+      "ID: " + notice.external_id + " | Agency: " + notice.agency));
+    card.appendChild(node("p",
+      "Routes: " + (notice.routes.join(", ") || "Not specified") +
+      "\nArea: " + (notice.area || "Not specified") +
+      "\nStations: " + (notice.stations.join(", ") || "Not specified")));
+    card.appendChild(node("p",
+      "Type: " + notice.advisory_type +
+      "\nValid from: " + time(notice.valid_from) +
+      "\nValid until: " + time(notice.valid_to) +
+      "\nLast confirmed: " + time(notice.last_confirmed_at) +
+      "\nSource last checked: " + time(notice.source_last_checked_at) +
+      "\nRevision: " + notice.revision_id, "meta"));
+
+    if (notice.source_last_error) {
+      card.appendChild(node("p",
+        "Refresh failed: " + notice.source_last_error, "error"));
+    }
+
+    card.appendChild(sourceReference(notice.source_url, notice.source_mode));
+
+    const history = node("button", "View Revision History");
+    history.addEventListener("click", () => loadHistory(notice.id));
+    card.appendChild(node("p", ""));
+    card.appendChild(history);
+    box.appendChild(card);
+  }
+}
+
+async function loadHistory(id) {
+  showView("history");
+  const box = $("history-list");
+  box.textContent = "Loading history...";
+
+  try {
+    const history = await api("/api/advisories/" + id + "/history");
+    box.replaceChildren();
+    if (!history.length) box.textContent = "No recorded revisions.";
+
+    for (const revision of history) {
+      const card = node("article", "", "card");
+      card.appendChild(node("h3", "Revision " + revision.revision_id));
+      card.appendChild(node("p", revision.change_summary));
+      card.appendChild(node("p", "Observed: " + time(revision.observed_at)));
+      card.appendChild(node("pre",
+        JSON.stringify(revision.snapshot, null, 2)));
+      box.appendChild(card);
+    }
+  } catch (error) {
+    box.textContent = "History error: " + error.message;
+  }
+}
+
+async function loadSources() {
+  const box = $("source-list");
+  try {
+    const sources = await api("/api/sources");
+    box.replaceChildren();
+    if (!sources.length) box.textContent = "No sources configured.";
+
+    for (const source of sources) {
+      const card = node("article", "", "card");
+      card.appendChild(node("h3", source.name));
+      card.appendChild(node("p",
+        "Mode: " + source.mode +
+        "\nApproval: " + source.approval_status +
+        "\nLast checked: " + time(source.last_checked_at) +
+        "\nLast successful refresh: " + time(source.last_success_at)));
+      card.appendChild(node("p", source.permission_notes || "", "muted"));
+      card.appendChild(sourceReference(source.source_url, source.mode));
+      if (source.last_error) {
+        card.appendChild(node("p", source.last_error, "error"));
+      }
+      box.appendChild(card);
+    }
+  } catch (error) {
+    box.textContent = "Sources error: " + error.message;
+  }
+}
+
+async function loadRoutes(event) {
+  if (event) event.preventDefault();
+  const box = $("route-list");
+  box.textContent = "Loading routes...";
+
+  try {
+    const routes = await api(
+      "/api/routes?q=" + encodeURIComponent($("route-search").value.trim())
+    );
+    box.replaceChildren();
+    if (!routes.length) box.textContent = "No matching routes.";
+
+    for (const route of routes) {
+      const card = node("article", "", "card");
+      card.appendChild(node("h3",
+        route.route_short_name || route.route_long_name || "Unnamed route"));
+      card.appendChild(node("p", "Route ID: " + route.route_id));
+
+      const button = node("button", "View Stored Advisories");
+      button.addEventListener("click", () => {
+        for (const id of [
+          "search", "area-filter", "station-filter",
+          "status-filter", "date-filter"
+        ]) $(id).value = "";
+        $("route-filter").value = route.route_id;
+        renderNotices();
+        showView("advisories");
+      });
+
+      card.appendChild(button);
+      box.appendChild(card);
+    }
+  } catch (error) {
+    box.textContent = "Route search error: " + error.message;
+  }
+}
+
+async function loadDashboard() {
+  message("Loading dashboard data...");
+  try {
+    const data = await api("/api/advisories");
+    if (!Array.isArray(data)) throw new Error("Invalid advisories response");
+    notices = data;
+    $("total").textContent = notices.length;
+    $("active").textContent = notices.filter(n => n.status === "active").length;
+    $("expired").textContent = notices.filter(n => n.status === "expired").length;
+    $("open").textContent = notices.filter(n => n.status === "open_ended").length;
+    renderNotices();
+    await loadSources();
+    message("Database records loaded. This was not a source refresh.");
+  } catch (error) {
+    message("Load failed: " + error.message, true);
+  }
+}
+
+for (const id of [
+  "search", "route-filter", "area-filter",
+  "station-filter", "status-filter", "date-filter"
+]) {
+  $(id).addEventListener("input", renderNotices);
+}
+
+$("route-search-form").addEventListener("submit", loadRoutes);
+$("reload").addEventListener("click", loadDashboard);
+loadDashboard();
+loadRoutes();
+</script>
+</body>
+</html>

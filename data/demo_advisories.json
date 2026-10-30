@@ -1,0 +1,52 @@
+[
+  {
+    "external_id": "DEMO-001",
+    "agency": "Demo Transport Authority",
+    "routes": [
+      "0",
+      "38"
+    ],
+    "stations": [
+      "Demo Central"
+    ],
+    "area": "Demo Central Area",
+    "advisory_type": "diversion",
+    "summary": "DEMO: Temporary diversion affecting two routes.",
+    "published_at": "2026-10-29T09:50:58+00:00",
+    "valid_from": "2026-10-29T10:50:58+00:00",
+    "valid_to": "2026-10-30T11:50:58+00:00",
+    "lifecycle_status": "published"
+  },
+  {
+    "external_id": "DEMO-002",
+    "agency": "Demo Transport Authority",
+    "routes": [
+      "533"
+    ],
+    "stations": [
+      "Demo East"
+    ],
+    "area": "Demo East Area",
+    "advisory_type": "interruption",
+    "summary": "DEMO: This interruption has already expired.",
+    "published_at": "2026-10-26T11:50:58+00:00",
+    "valid_from": "2026-10-27T11:50:58+00:00",
+    "valid_to": "2026-10-28T11:50:58+00:00",
+    "lifecycle_status": "published"
+  },
+  {
+    "external_id": "DEMO-003",
+    "agency": "Demo Transport Authority",
+    "routes": [
+      "0"
+    ],
+    "stations": [],
+    "area": "Demo Central Area",
+    "advisory_type": "service_change",
+    "summary": "DEMO: Service change without an announced end date.",
+    "published_at": "2026-10-29T09:50:58+00:00",
+    "valid_from": "2026-10-29T10:50:58+00:00",
+    "valid_to": null,
+    "lifecycle_status": "published"
+  }
+]
