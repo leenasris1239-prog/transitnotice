@@ -1,6 +1,21 @@
 from flask import Flask, request, render_template_string, redirect, url_for
 import sqlite3
 from pathlib import Path
+from datetime import datetime, timezone, timedelta
+
+def freshness(row):
+    ts = row[6]
+    if not ts:
+        return "STALE", "Not recorded"
+    try:
+        dt = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        age = datetime.now(timezone.utc) - dt
+        label = "FRESH" if age <= timedelta(hours=24) else "STALE"
+        return label, dt.strftime("%d %b %Y %H:%M UTC")
+    except Exception:
+        return "STALE", str(ts)
 
 app = Flask(__name__)
 DB = Path("transit.db")
@@ -192,6 +207,8 @@ td {
   border-radius: 7px;
   padding: 4px 8px;
 }
+.badge.fresh { background:#dcfce7; color:#166534; border-color:#86efac; }
+.badge.stale { background:#fee2e2; color:#991b1b; border-color:#fca5a5; }
 .empty { text-align: center; padding: 30px; }
 @media (max-width: 1000px) {
   .controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -303,6 +320,11 @@ th:nth-child(8), td:nth-child(8) { width: 6%; }
                value="{{ area }}">
       </div>
       <div class="field">
+        <label for="station">Station keyword</label>
+        <input id="station" name="station" placeholder="e.g. Penn Station"
+               value="{{ station }}">
+      </div>
+      <div class="field">
         <label for="q">Search notice text</label>
         <input id="q" name="q" placeholder="e.g. diversion"
                value="{{ q }}">
@@ -360,35 +382,38 @@ th:nth-child(8), td:nth-child(8) { width: 6%; }
           </tr>
         </thead>
         <tbody>
-        {% for r in rows %}
+      {% for r in rows %}
           <tr>
             <td><span class="badge">{{ r[0] or '-' }}</span></td>
             <td>{{ r[7] or 'Not identified' }}</td>
             <td class="advisory">{{ r[1] or '-' }}</td>
             <td>{{ r[5] or 'Not provided' }}</td>
             <td>{{ r[4] or 'Unknown' }}</td>
-            <td>{{ r[6] or 'Not recorded' }}</td>
             <td>
-              {% if r[3] and
-                    (r[3].startswith('https://') or
-                     r[3].startswith('http://')) %}
+              <span class="badge {{ 'fresh' if r[10] == 'FRESH' else 'stale' }}">
+                {{ r[10] }}
+              </span>
+              <br>{{ r[11] }}
+            </td>
+            <td>
+              {% if r[3] and r[3].startswith('http') %}
               <a href="{{ r[3] }}" target="_blank"
                  rel="noopener noreferrer">Open source</a>
               {% else %}
               Unavailable
               {% endif %}
             </td>
-           <td>
-  {% if r[-2] and r[-1] %}
-    {{ r[-2] }} – {{ r[-1] }}
-  {% elif r[-2] %}
-    {{ r[-2] }}
-  {% elif r[-1] %}
-    Until {{ r[-1] }}
-  {% else %}
-    —
-  {% endif %}
-</td>
+            <td>
+              {% if r[8] and r[9] %}
+                {{ r[8] }} – {{ r[9] }}
+              {% elif r[8] %}
+                {{ r[8] }}
+              {% elif r[9] %}
+                Until {{ r[9] }}
+              {% else %}
+                —
+              {% endif %}
+            </td>
           </tr>
         {% else %}
           <tr>
@@ -484,6 +509,7 @@ applyAppearance();
 def dashboard():
     route = request.args.get("route", "").strip()
     area = request.args.get("area", "").strip()
+    station = request.args.get("station", "").strip()
     q = request.args.get("q", "").strip()
     service_date = request.args.get("service_date", "").strip()
     status = request.args.get("status", "").strip()
@@ -503,6 +529,9 @@ def dashboard():
     if area:
         query += " AND area LIKE ?"
         params.append(f"%{area}%")
+    if station:
+        query += " AND (summary LIKE ? OR area LIKE ?)"
+        params.extend([f"%{station}%", f"%{station}%"]) 
     if q:
         query += " AND summary LIKE ?"
         params.append(f"%{q}%")
@@ -517,6 +546,7 @@ def dashboard():
     query += " ORDER BY COALESCE(published_at, observed_at) DESC"
 
     rows = conn.execute(query, params).fetchall()
+    rows = [r + freshness(r) for r in rows]
 
     total = conn.execute("SELECT COUNT(*) FROM advisories").fetchone()[0]
     unique_routes = conn.execute(
@@ -546,7 +576,7 @@ def dashboard():
     return render_template_string(
         TEMPLATE, rows=rows, total=total, unique_routes=unique_routes,
         latest=latest, route=route, area=area, q=q,
-        service_date=service_date, status=status, timezone=TIMEZONE,alerts=alerts, alert_count=alert_count
+        service_date=service_date, status=status,station=station, timezone=TIMEZONE,alerts=alerts, alert_count=alert_count
     )
 @app.route("/refresh", methods=["POST"])
 def refresh_now():
