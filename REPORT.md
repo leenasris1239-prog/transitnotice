@@ -79,6 +79,7 @@ Passengers need clear updates about route diversions and planned service interru
 │ revision_id      │
 │ change_summary   │
 └──────────────────┘
+```
 ## Appendix — Sample Records
 
 Sample advisories stored in transit.db (source-attributed):
@@ -98,3 +99,55 @@ Sample advisories stored in transit.db (source-attributed):
 | 3 | Freshness badge + last-verified + source link | screenshots/03-freshness.png |
 | 4 | Alert history with delivery status | screenshots/04-alerts.png |
 | 5 | Test script output | screenshots/05-tests.png |
+
+## User Personas
+
+### Persona 1 — Daily Commuter (Priya)
+- Need: Route diversion/delay info before travel
+- Usefulness: Quick advisory check, freshness badge, route filter
+- Limitation: No real-time vehicle GPS; only official-source updates
+
+### Persona 2 — Transit Operations Staff (Karthik)
+- Need: Publish/track advisories, audit changes
+- Usefulness: Alert history, source link, last-verified time
+- Limitation: Manual source update needed; app reflects after refresh
+
+## Limitations of Scheduled Public-Source Monitoring
+- Depends on source page update frequency
+- Stale data possible if source not refreshed
+- No private/real-time data; official public sources only
+
+## Timezone Handling
+
+- All timestamps stored in UTC in the database.
+- Dashboard displays times in IST (Asia/Kolkata) for user readability.
+- Advisory valid_from / valid_to parsed and normalized to UTC before comparison.
+- Freshness and active-status calculations use UTC to avoid daylight-saving or locale errors.
+- This approach is reproducible across environments.
+
+## Deployment
+
+1. Clone repository: `git clone https://github.com/leenasris1239-prog/transitnotice.git`
+2. Install Python dependencies (Flask, requests)
+3. Initialize database: `py import_rss.py`
+4. Start dashboard: `py dashboard.py`
+5. Open `http://127.0.0.1:8000` in browser
+6. Run tests: `py -m pytest tests/ -v`
+
+**Operational monitoring:** refresh failures are logged; stale notices are clearly labeled; source status is visible in the dashboard.
+
+## Ethics & Conclusion
+
+**Ethics:**
+- Only public, officially published advisories are collected
+- robots.txt and site terms are respected; no login bypass or CAPTCHA evasion
+- No personal or private data is stored; data minimization is followed
+- Source attribution ("Source: NJ TRANSIT") is shown in the dashboard
+
+**Known gaps / Future work:**
+- Real-time vehicle GPS integration
+- Support for multiple transit agencies
+- Email/SMS alert delivery (currently demo mode)
+- Automated scheduling for production use
+
+**Conclusion:** TransitNotice successfully monitors official transit advisories, extracts routes and validity windows, tracks changes, and displays fresh, source-attributed information with alerts — helping commuters and transit staff make informed decisions.
