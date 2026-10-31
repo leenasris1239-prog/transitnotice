@@ -135,6 +135,7 @@ Sample advisories stored in transit.db (source-attributed):
 6. Run tests: `py -m pytest tests/ -v`
 
 **Operational monitoring:** refresh failures are logged; stale notices are clearly labeled; source status is visible in the dashboard.
+**Secrets & access control:** No credentials or API keys are stored in source code; configuration is kept outside version-controlled source files.
 
 ## Ethics & Conclusion
 
@@ -151,3 +152,10 @@ Sample advisories stored in transit.db (source-attributed):
 - Automated scheduling for production use
 
 **Conclusion:** TransitNotice successfully monitors official transit advisories, extracts routes and validity windows, tracks changes, and displays fresh, source-attributed information with alerts — helping commuters and transit staff make informed decisions.
+
+## Evaluation
+
+- **Collection quality:** Advisories are collected from the official NJ Transit RSS feed; route codes, summaries and source URLs are extracted and normalized.
+- **Alert precision:** One alert is generated per new or revised advisory using dedupe_key, avoiding duplicate notifications.
+- **Refresh performance:** Manual/scheduled refresh completes within the 10-second timeout; failures are retried with backoff and logged.
+- **Limitations:** Depends on source publication frequency; no real-time GPS; single agency coverage currently.
