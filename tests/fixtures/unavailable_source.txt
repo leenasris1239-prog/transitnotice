@@ -1,0 +1,4 @@
+SIMULATED SOURCE OUTAGE
+URL: https://www.njtransit.com/bus-advisories
+Status: 503 Service Unavailable
+Behavior: parser must not crash; existing data stays STALE; failure logged
