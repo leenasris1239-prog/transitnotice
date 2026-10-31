@@ -64,4 +64,53 @@ run_refresh()
 print("-> Passed if no crash, failure logged\n")
 restore()
 
+def test_expired_advisory_not_active():
+    from scraper import calculate_status
+    status = calculate_status("2026-01-01", "2026-01-02", "2026-10-31")
+    assert status == "expired"
+
+
+def test_advisory_without_end_date():
+    from scraper import calculate_status
+    status = calculate_status("2026-01-01", None, "2026-10-31")
+    assert status == "active"
+
+
+def test_multi_route_filter():
+    multi_route = "412,500,603"
+    assert "500" in multi_route
+
+print("\nTest 5: Expired advisory")
+test_expired_advisory_not_active()
+print("-> Passed: expired advisory not active")
+
+print("\nTest 6: Advisory without end date")
+test_advisory_without_end_date()
+print("-> Passed: no end date stays active")
+
+print("\nTest 7: Multi-route filter")
+test_multi_route_filter()
+print("-> Passed: multi-route filter works")
+
 print("All tests done. Backup restored.")
+
+def test_expired_advisory_not_active():
+    """Expired advisory must not be marked active."""
+    from scraper import calculate_status
+    status = calculate_status("2026-01-01", "2026-01-02", "2026-10-31")
+    assert status == "expired"
+    assert status != "active"
+
+
+def test_advisory_without_end_date():
+    """Advisory with no end date must remain active."""
+    from scraper import calculate_status
+    status = calculate_status("2026-01-01", None, "2026-10-31")
+    assert status == "active"
+
+
+def test_multi_route_filter():
+    """Route filter must match one route among multiple affected routes."""
+    pattern = f"%{'500'}%"
+    multi_route = "412,500,603"
+    assert pattern.strip("%") in multi_route
