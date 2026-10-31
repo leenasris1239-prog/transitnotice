@@ -79,3 +79,12 @@ Passengers need clear updates about route diversions and planned service interru
 │ revision_id      │
 │ change_summary   │
 └──────────────────┘
+## Appendix — Sample Records
+
+Sample advisories stored in transit.db (source-attributed):
+
+| notice_id | route_id | area | type | summary | status | valid_from | valid_to | source_url |
+|---|---|---|---|---|---|---|---|---|
+| ef12e5dffdad38c99d00f1f7221f4733861c3e5c | 186,05,2026,01,53,44,171,175,178,181 | None | general | BUS 186 - Aug 05, 2026 01:53:44 PM. Bus  | active | None | None | https://www.njtransit.com/node/2147652 |
+| c7758d5d3715c31c23912e387414ca6d2438d661 | 188,05,2026,01,53,44,171,175,178,181 | None | general | BUS 188 - Aug 05, 2026 01:53:44 PM. Bus  | active | None | None | https://www.njtransit.com/node/2147652 |
+| 4ae543a6132565326b493add64c3616d63a72a09 | 171,05,2026,01,53,44,175,178,181 | None | general | BUS 171 - Aug 05, 2026 01:53:44 PM. Bus  | active | None | None | https://www.njtransit.com/node/2147652 |
