@@ -67,6 +67,14 @@ def init_db():
             created_at TEXT NOT NULL,
             delivered_at TEXT
         );
+        CREATE TABLE IF NOT EXISTS subscribers (
+            subscriber_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            email TEXT,
+            route_filter TEXT,
+            area_filter TEXT,
+            created_at TEXT NOT NULL
+        );
     """)
     conn.commit()
     conn.close()
