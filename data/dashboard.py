@@ -306,6 +306,20 @@ th:nth-child(8), td:nth-child(8) { width: 6%; }
     </div>
   </section>
 
+  <section class="panel" aria-label="Advisory status chart">
+    <h2>Advisories by Status</h2>
+    {% for s in status_counts %}
+    <div style="margin:10px 0;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+        <span>{{ s[0]|capitalize }}</span>
+        <span>{{ s[1] }}</span>
+      </div>
+      <div style="background:var(--border); border-radius:6px; height:16px; width:100%;">
+        <div style="background:var(--accent); height:16px; border-radius:6px; width:{{ (s[1] * 100 / total) | round(1) }}%;"></div>
+      </div>
+    </div>
+    {% endfor %}
+  </section>
   <section class="panel" id="filters">
     <h2>Search & Filters</h2>
     <form class="controls" method="get" action="/">
@@ -571,12 +585,15 @@ def dashboard():
     alert_count = conn.execute(
         "SELECT COUNT(*) FROM alert_log"
     ).fetchone()[0]
+    status_counts = conn.execute(
+        "SELECT status, COUNT(*) FROM advisories GROUP BY status"
+    ).fetchall()
     conn.close()
 
     return render_template_string(
         TEMPLATE, rows=rows, total=total, unique_routes=unique_routes,
         latest=latest, route=route, area=area, q=q,
-        service_date=service_date, status=status,station=station, timezone=TIMEZONE,alerts=alerts, alert_count=alert_count
+        service_date=service_date, status=status,station=station, timezone=TIMEZONE,alerts=alerts, alert_count=alert_count, status_counts=status_counts
     )
 @app.route("/refresh", methods=["POST"])
 def refresh_now():
